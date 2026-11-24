@@ -1,0 +1,159 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * Identidade visual Volt
+ * - Principal: azul-petróleo #0F3D4C (botões, aba ativa, cartões de destaque)
+ * - Destaque:  amarelo        #F5B700 (ações "faça agora", progresso, contadores)
+ * - Fundo:     off-white quente, cartões brancos com borda suave
+ * - Tipografia: Figtree (texto) + JetBrains Mono (horários, ramais, rótulos)
+ */
+:root {
+  --radius: 0.625rem;
+
+  --background: #f4f2ed;
+  --foreground: #14262d;
+
+  --card: #ffffff;
+  --card-foreground: #14262d;
+  --popover: #ffffff;
+  --popover-foreground: #14262d;
+
+  --primary: #0f3d4c;
+  --primary-foreground: #ffffff;
+  --secondary: #f1eee7;
+  --secondary-foreground: #14262d;
+  --muted: #efece5;
+  --muted-foreground: #6b6f69;
+  --accent: #f1eee7;
+  --accent-foreground: #14262d;
+  --destructive: #c62828;
+
+  --destaque: #f5b700;
+  --destaque-foreground: #1f1a0a;
+  /* Azul de apoio (itens informativos, agenda) */
+  --info: #3a7ca5;
+  --info-suave: #e9f1f6;
+  --destaque-suave: #fff4d6;
+
+  --border: #e6e2d9;
+  --input: #dcd7cc;
+  --ring: #0f3d4c;
+
+  --sidebar: #0f3d4c;
+  --sidebar-foreground: #c9dbe1;
+  --sidebar-primary: #f5b700;
+  --sidebar-primary-foreground: #0f3d4c;
+  --sidebar-accent: #17505f;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #1d5767;
+  --sidebar-ring: #f5b700;
+}
+
+@theme inline {
+  --font-sans: var(--font-figtree), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, monospace;
+
+  --color-info: var(--info);
+  --color-info-suave: var(--info-suave);
+  --color-destaque-suave: var(--destaque-suave);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destaque: var(--destaque);
+  --color-destaque-foreground: var(--destaque-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+  }
+}
+
+/* FullCalendar com a identidade visual da Volt */
+.calendario-volt {
+  --fc-border-color: var(--border);
+  --fc-page-bg-color: var(--card);
+  --fc-neutral-bg-color: var(--muted);
+  --fc-today-bg-color: color-mix(in srgb, var(--destaque) 10%, transparent);
+  --fc-now-indicator-color: var(--destaque);
+  --fc-highlight-color: color-mix(in srgb, var(--primary) 12%, transparent);
+  --fc-non-business-color: color-mix(in srgb, var(--muted) 60%, transparent);
+  --fc-button-bg-color: var(--card);
+  --fc-button-border-color: var(--border);
+  --fc-button-text-color: var(--foreground);
+  --fc-button-hover-bg-color: var(--accent);
+  --fc-button-hover-border-color: var(--border);
+  --fc-button-active-bg-color: var(--primary);
+  --fc-button-active-border-color: var(--primary);
+  --fc-list-event-hover-bg-color: var(--accent);
+  font-size: 0.8125rem;
+}
+.calendario-volt .fc .fc-button {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  padding: 0.35rem 0.7rem;
+  box-shadow: none !important;
+}
+.calendario-volt .fc .fc-button-primary:not(:disabled).fc-button-active,
+.calendario-volt .fc .fc-button-primary:not(:disabled):active {
+  color: var(--primary-foreground);
+}
+.calendario-volt .fc .fc-toolbar-title {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--primary);
+}
+.calendario-volt .fc .fc-toolbar-title::first-letter {
+  text-transform: uppercase;
+}
+.calendario-volt .fc .fc-col-header-cell-cushion,
+.calendario-volt .fc .fc-daygrid-day-number {
+  color: var(--foreground);
+  text-transform: capitalize;
+}
+.calendario-volt .fc-event {
+  cursor: pointer;
+  border-radius: 6px;
+}
+@media (max-width: 640px) {
+  .calendario-volt .fc .fc-toolbar {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+}

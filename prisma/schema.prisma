@@ -1,0 +1,470 @@
+// VoltHub — schema do banco de dados
+// Documentação: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Enums
+// ─────────────────────────────────────────────────────────────
+
+enum Perfil {
+  COLABORADOR
+  GESTOR
+  EQUIPE
+  ADMIN
+}
+
+/// Equipe de atendimento interno (independente do perfil).
+enum Equipe {
+  RH
+  TI
+}
+
+enum CategoriaComunicado {
+  GERAL
+  RH
+  TI
+  SEGURANCA
+  EVENTOS
+  COMERCIAL
+}
+
+enum TipoSolicitacao {
+  FERIAS
+  FOLGA
+  ATESTADO
+  ATUALIZACAO_DADOS
+}
+
+enum StatusSolicitacao {
+  PENDENTE
+  APROVADA
+  REPROVADA
+  CANCELADA
+}
+
+enum CategoriaChamado {
+  HARDWARE
+  SOFTWARE
+  REDE
+  ACESSO
+  EMAIL
+  IMPRESSORA
+  OUTROS
+}
+
+enum PrioridadeChamado {
+  BAIXA
+  MEDIA
+  ALTA
+  URGENTE
+}
+
+enum StatusChamado {
+  ABERTO
+  EM_ANDAMENTO
+  AGUARDANDO_USUARIO
+  RESOLVIDO
+  FECHADO
+}
+
+enum TipoRecurso {
+  SALA
+  VEICULO
+}
+
+enum StatusReserva {
+  CONFIRMADA
+  CANCELADA
+  CONCLUIDA
+}
+
+enum CategoriaDocumento {
+  POLITICA
+  MANUAL
+  FORMULARIO
+  PROCEDIMENTO
+  MODELO
+  OUTROS
+}
+
+enum TipoNotificacao {
+  COMUNICADO
+  SOLICITACAO
+  CHAMADO
+  RESERVA
+  SISTEMA
+}
+
+// ─────────────────────────────────────────────────────────────
+// Estrutura organizacional
+// ─────────────────────────────────────────────────────────────
+
+model Unidade {
+  id       String  @id @default(cuid())
+  nome     String  @unique
+  cidade   String
+  uf       String  @db.Char(2)
+  endereco String?
+  telefone String?
+  matriz   Boolean @default(false)
+
+  usuarios    Usuario[]
+  recursos    Recurso[]
+  ramais      RamalUtil[]
+  comunicados Comunicado[] @relation("ComunicadoUnidades")
+
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+}
+
+model Setor {
+  id    String @id @default(cuid())
+  nome  String @unique
+  sigla String @unique
+
+  usuarios    Usuario[]
+  documentos  Documento[]
+  metas       MetaMensal[]
+  comunicados Comunicado[] @relation("ComunicadoSetores")
+
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+}
+
+model Usuario {
+  id             String    @id @default(cuid())
+  nome           String
+  email          String    @unique
+  /// Usuário de rede (ex.: "juliana.costa"). Também serve para entrar no portal.
+  login          String    @unique
+  /// Matrícula funcional (ex.: "10008"). Também serve para entrar no portal.
+  matricula      String    @unique
+  senhaHash      String
+  perfil         Perfil    @default(COLABORADOR)
+  equipe         Equipe?
+  cargo          String
+  telefone       String?
+  ramal          String?
+  dataNascimento DateTime? @db.Date
+  dataAdmissao   DateTime  @db.Date
+  avatarUrl      String?
+  ativo          Boolean   @default(true)
+  ultimoAcessoEm DateTime?
+
+  unidadeId String
+  unidade   Unidade @relation(fields: [unidadeId], references: [id])
+  setorId   String
+  setor     Setor   @relation(fields: [setorId], references: [id])
+
+  /// Gestor direto: quem aprova as solicitações deste colaborador.
+  gestorId     String?
+  gestor       Usuario?  @relation("Hierarquia", fields: [gestorId], references: [id], onDelete: SetNull)
+  subordinados Usuario[] @relation("Hierarquia")
+
+  comunicados            Comunicado[]
+  leituras               LeituraComunicado[]
+  solicitacoes           Solicitacao[]       @relation("SolicitacaoSolicitante")
+  solicitacoesAprovadas  Solicitacao[]       @relation("SolicitacaoAprovador")
+  chamadosAbertos        Chamado[]           @relation("ChamadoSolicitante")
+  chamadosAtribuidos     Chamado[]           @relation("ChamadoResponsavel")
+  comentariosChamado     ComentarioChamado[]
+  reservas               Reserva[]
+  documentos             Documento[]
+  notificacoes           Notificacao[]
+  logsAuditoria          LogAuditoria[]
+
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  @@index([unidadeId])
+  @@index([setorId])
+  @@index([gestorId])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Mural de comunicados
+// ─────────────────────────────────────────────────────────────
+
+model Comunicado {
+  id          String              @id @default(cuid())
+  titulo      String
+  conteudo    String              @db.Text
+  categoria   CategoriaComunicado @default(GERAL)
+  fixado      Boolean             @default(false)
+  publicadoEm DateTime            @default(now())
+  expiraEm    DateTime?
+
+  autorId String
+  autor   Usuario @relation(fields: [autorId], references: [id])
+
+  /// Público-alvo. Listas vazias = toda a empresa.
+  unidades Unidade[] @relation("ComunicadoUnidades")
+  setores  Setor[]   @relation("ComunicadoSetores")
+
+  leituras LeituraComunicado[]
+
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  @@index([fixado, publicadoEm])
+}
+
+/// "Estou ciente": um registro por usuário e comunicado.
+model LeituraComunicado {
+  id     String   @id @default(cuid())
+  lidoEm DateTime @default(now())
+
+  comunicadoId String
+  comunicado   Comunicado @relation(fields: [comunicadoId], references: [id], onDelete: Cascade)
+  usuarioId    String
+  usuario      Usuario    @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@unique([comunicadoId, usuarioId])
+  @@index([usuarioId])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Solicitações de RH
+// ─────────────────────────────────────────────────────────────
+
+model Solicitacao {
+  id         String            @id @default(cuid())
+  tipo       TipoSolicitacao
+  status     StatusSolicitacao @default(PENDENTE)
+  dataInicio DateTime?         @db.Date
+  dataFim    DateTime?         @db.Date
+  motivo     String?           @db.Text
+  /// Campos alterados em pedidos de ATUALIZACAO_DADOS (ex.: { telefone, endereco }).
+  dados      Json?
+  anexoUrl   String?
+  anexoNome  String?
+
+  solicitanteId String
+  solicitante   Usuario  @relation("SolicitacaoSolicitante", fields: [solicitanteId], references: [id])
+  aprovadorId   String?
+  aprovador     Usuario? @relation("SolicitacaoAprovador", fields: [aprovadorId], references: [id])
+
+  observacaoAprovador String?   @db.Text
+  decididoEm          DateTime?
+
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  @@index([solicitanteId])
+  @@index([aprovadorId, status])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Chamados de TI
+// ─────────────────────────────────────────────────────────────
+
+model Chamado {
+  id         String            @id @default(cuid())
+  /// Número amigável exibido na interface (ex.: #1042).
+  numero     Int               @unique @default(autoincrement())
+  titulo     String
+  descricao  String            @db.Text
+  categoria  CategoriaChamado
+  prioridade PrioridadeChamado @default(MEDIA)
+  status     StatusChamado     @default(ABERTO)
+  anexoUrl   String?
+  anexoNome  String?
+
+  solicitanteId String
+  solicitante   Usuario  @relation("ChamadoSolicitante", fields: [solicitanteId], references: [id])
+  responsavelId String?
+  responsavel   Usuario? @relation("ChamadoResponsavel", fields: [responsavelId], references: [id])
+
+  comentarios ComentarioChamado[]
+
+  resolvidoEm  DateTime?
+  criadoEm     DateTime  @default(now())
+  atualizadoEm DateTime  @updatedAt
+
+  @@index([status, prioridade])
+  @@index([solicitanteId])
+  @@index([responsavelId])
+}
+
+model ComentarioChamado {
+  id        String  @id @default(cuid())
+  conteudo  String  @db.Text
+  /// Comentário visível apenas para a equipe de TI.
+  interno   Boolean @default(false)
+  anexoUrl  String?
+  anexoNome String?
+
+  chamadoId String
+  chamado   Chamado @relation(fields: [chamadoId], references: [id], onDelete: Cascade)
+  autorId   String
+  autor     Usuario @relation(fields: [autorId], references: [id])
+
+  criadoEm DateTime @default(now())
+
+  @@index([chamadoId])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Reservas de salas e veículos
+// ─────────────────────────────────────────────────────────────
+
+model Recurso {
+  id          String      @id @default(cuid())
+  nome        String
+  tipo        TipoRecurso
+  descricao   String?
+  ativo       Boolean     @default(true)
+  // Salas
+  capacidade  Int?
+  localizacao String?
+  // Veículos
+  placa       String?     @unique
+  modelo      String?
+  kmAtual     Int?
+
+  unidadeId String
+  unidade   Unidade @relation(fields: [unidadeId], references: [id])
+
+  reservas Reserva[]
+
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  @@index([unidadeId, tipo])
+}
+
+/// A sobreposição de horários é bloqueada também no banco, por uma
+/// exclusion constraint (btree_gist) criada em migration SQL própria.
+model Reserva {
+  id          String        @id @default(cuid())
+  titulo      String
+  inicio      DateTime
+  fim         DateTime
+  status      StatusReserva @default(CONFIRMADA)
+  observacoes String?
+  // Veículos
+  destino     String?
+  kmSaida     Int?
+  kmRetorno   Int?
+
+  recursoId String
+  recurso   Recurso @relation(fields: [recursoId], references: [id])
+  usuarioId String
+  usuario   Usuario @relation(fields: [usuarioId], references: [id])
+
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  @@index([recursoId, inicio, fim])
+  @@index([usuarioId])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Biblioteca de documentos
+// ─────────────────────────────────────────────────────────────
+
+model Documento {
+  id           String             @id @default(cuid())
+  titulo       String
+  descricao    String?
+  categoria    CategoriaDocumento @default(OUTROS)
+  arquivoUrl   String
+  arquivoNome  String
+  mimeType     String
+  tamanhoBytes Int
+
+  /// Setor responsável pelo documento (opcional).
+  setorId String?
+  setor   Setor?  @relation(fields: [setorId], references: [id], onDelete: SetNull)
+  autorId String
+  autor   Usuario @relation(fields: [autorId], references: [id])
+
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  @@index([categoria])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Painel inicial ("Meu dia")
+// ─────────────────────────────────────────────────────────────
+
+/// Meta do mês exibida no painel. Com setor: vale para o setor; sem setor: meta geral da empresa.
+model MetaMensal {
+  id             String   @id @default(cuid())
+  titulo         String
+  /// Primeiro dia do mês de referência.
+  mes            DateTime @db.Date
+  /// Valores em reais (inteiros).
+  valorMeta      Int
+  valorRealizado Int      @default(0)
+
+  setorId String?
+  setor   Setor?  @relation(fields: [setorId], references: [id], onDelete: Cascade)
+
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  @@index([mes])
+}
+
+/// Ramais de atalho no painel ("Suporte TI", "Expedição"...). Sem unidade = todas.
+model RamalUtil {
+  id     String @id @default(cuid())
+  nome   String
+  numero String
+  ordem  Int    @default(0)
+
+  unidadeId String?
+  unidade   Unidade? @relation(fields: [unidadeId], references: [id], onDelete: Cascade)
+
+  @@index([unidadeId, ordem])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Notificações e auditoria
+// ─────────────────────────────────────────────────────────────
+
+model Notificacao {
+  id       String          @id @default(cuid())
+  tipo     TipoNotificacao @default(SISTEMA)
+  titulo   String
+  mensagem String
+  link     String?
+  lida     Boolean         @default(false)
+
+  usuarioId String
+  usuario   Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  criadoEm DateTime @default(now())
+
+  @@index([usuarioId, lida])
+}
+
+model LogAuditoria {
+  id         String  @id @default(cuid())
+  /// Ex.: LOGIN, SOLICITACAO_APROVADA, USUARIO_ATUALIZADO
+  acao       String
+  /// Nome do model afetado (ex.: "Solicitacao")
+  entidade   String
+  entidadeId String?
+  dados      Json?
+  ip         String?
+
+  usuarioId String?
+  usuario   Usuario? @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
+
+  criadoEm DateTime @default(now())
+
+  @@index([entidade, entidadeId])
+  @@index([usuarioId])
+  @@index([criadoEm])
+}

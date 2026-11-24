@@ -1,0 +1,18 @@
+# Alternativa opcional ao PostgreSQL instalado localmente.
+# Uso: docker compose up -d   (e ajuste DATABASE_URL para postgres:volt@localhost:5432)
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: volthub-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: volt
+      POSTGRES_DB: volthub
+    ports:
+      - "5432:5432"
+    volumes:
+      - volthub-data:/var/lib/postgresql/data
+
+volumes:
+  volthub-data:
